@@ -6,14 +6,12 @@ library(readr)
 library(readxl)
 library(janitor)
 
-source("\\\\SRVshares\\Heinz\\OPENDATA\\R_Setup\\db_connect.R")
-
 ### ------- Get schedule data from public timetable.
 # set current pick
 currentPick <- "2011"
 
-# read timetable
-timetableAll <- read.csv(paste0("\\\\Srvgiro2016\\giro\\hastus2016_wr\\hastus2016\\users\\NEWMAEC\\inter\\",
+# read timetable from sample 2011_Public_Timetable_With_TripID.csv file
+timetableAll <- read.csv(paste0("[FILE_PATH]",
                                 currentPick,
                                 "_Public_Timetable_With_TripID.csv"),
                       stringsAsFactors = FALSE) %>%
@@ -35,10 +33,9 @@ timepoints <- as.vector(unique(timetableSeq$cleverid))
 
 
 
-### ------- get Ridecheck Plus load data from function
+### ------- get Ridecheck Plus load data from sample ridecheck_raw.csv file
 
-raw <- getRidecheckPlusData(startDate = Sys.Date()-18, 
-                            endDate = Sys.Date()-4) %>%
+raw <- read.csv("ridecheck_raw.csv") %>%
   filter(clever_id %in% timepoints) 
   
 
@@ -69,7 +66,7 @@ df <- raw %>%
             add_column(dates) 
 
 
-# Now join df to timetableAll. Add fancy route names. Remove extra columns,
+# Now join df to timetableAll. Remove extra columns,
 # then join the timetable Seq with the max stop sequence for sorting in Tableau. 
 
 
@@ -78,30 +75,10 @@ df_timetable <- df %>%
                                   "route" = "route",
                                   "clever_id" = "cleverid",
                                   "direction_name" = "direction"))%>%
-  left_join(getRoutes(), by = c("route" = "Route_Code")) %>%
-  select(-c(Internal_UTA, Friendly_Name, SB_Ridership_DB, Articulated, Mode, ttp_sequence)) %>%
+  select(-ttp_sequence) %>%
   left_join(timetableSeq, by = c("route" = "route",
                                  "clever_id" = "cleverid",
                                  "direction_name" = "direction"))
 
 
-write.csv(df_timetable, "\\\\SRVshares\\Heinz\\OPENDATA\\R_Projects\\ridership\\ridecheck_2week_loads.csv", row.names = FALSE)
-
-
-
-# not needed- for 2003 emergency pick data nightmares.
-### --- getting correct trip IDs.
-### pull in 2003 emerg. inner join with original 2003. convert to vector for filtering df later. 
-
-#trips_2003emerg <- read.csv("2003_e_lPublic_Timetable_With_TripID.csv")%>%
-#  filter(ttp_sequence == '1') %>%
-#  select(emerg.trip.id = internal.trip.id, trip.number) %>%
-#  distinct()
-
-#trips_2003 <- read.csv("Public_Timetable_IID.csv") %>%
-#  filter(ttp_sequence == '1') %>%
-#  select(internal.trip.id, trip.number) %>%
-#  distinct() %>%
-#  inner_join(trips_2003emerg, by = "trip.number")
-
-#sched <- trips_2003[,1]
+write.csv(df_timetable, "ridecheck_2week_loads.csv", row.names = FALSE)
